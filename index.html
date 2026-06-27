@@ -1,0 +1,609 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>지텔프 준동사 마스터</title>
+    <!-- 모바일 앱 전체 화면 모드 설정 -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#4f46e5">
+    
+    <!-- PWA 인라인 매니페스트 (모바일 독립 실행 지원) -->
+    <link rel="manifest" href='data:application/manifest+json,{
+        "short_name": "지텔프준동사",
+        "name": "지텔프 준동사 마스터",
+        "start_url": ".",
+        "background_color": "#4f46e5",
+        "theme_color": "#4f46e5",
+        "display": "standalone",
+        "orientation": "portrait"
+    }'>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { 
+            touch-action: manipulation; 
+            -webkit-tap-highlight-color: transparent;
+        }
+        /* 카드 부드러운 전환 애니메이션 */
+        .fade-in {
+            animation: fadeIn 0.3s ease-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        /* 버튼 클릭 시 튕기는 효과 */
+        .btn-active:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen font-sans flex flex-col justify-between p-4 selection:bg-indigo-500 selection:text-white">
+
+    <!-- 메인 컨테이너 -->
+    <div class="max-w-md w-full mx-auto bg-slate-900 border border-slate-800 rounded-3xl shadow-2xl overflow-hidden flex flex-col justify-between my-auto min-h-[85vh]">
+        
+        <!-- 헤더 영역 -->
+        <header class="p-5 border-b border-slate-800 flex justify-between items-center bg-slate-900/80 backdrop-blur-md sticky top-0 z-10">
+            <div>
+                <h1 class="text-xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">지텔프 준동사 마스터</h1>
+                <p class="text-xs text-slate-400 font-medium">G-TELP Grammar Booster</p>
+            </div>
+            <!-- 모드 전환 버튼 -->
+            <button id="view-toggle-btn" class="px-3 py-1.5 text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/20 transition-all active:scale-95" onclick="toggleViewMode()">
+                단어장 보기
+            </button>
+        </header>
+
+        <!-- 메인 콘텐츠 영역 -->
+        <main class="flex-grow p-5 flex flex-col justify-center">
+            
+            <!-- 1. 로비 화면 (시작 전) -->
+            <div id="lobby-view" class="fade-in text-center py-6">
+                <div class="w-20 h-20 mx-auto mb-6 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-3xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+                    <span class="text-4xl">⚡</span>
+                </div>
+                <h2 class="text-2xl font-bold mb-2 text-white">준동사 100% 암기 완료!</h2>
+                <p class="text-sm text-slate-400 max-w-xs mx-auto mb-8">
+                    동명사, to부정사, 필수 관용 표현까지 지텔프 문법에 나오는 모든 단어를 마스터하세요.
+                </p>
+
+                <!-- 학습 통계 카드 -->
+                <div class="grid grid-cols-2 gap-3 mb-8">
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80">
+                        <div class="text-xs text-slate-400 mb-1">최고 점수</div>
+                        <div id="lobby-high-score" class="text-xl font-bold text-indigo-300">0 / 45</div>
+                    </div>
+                    <div class="bg-slate-800/40 p-4 rounded-2xl border border-slate-800/80">
+                        <div class="text-xs text-slate-400 mb-1">완료 횟수</div>
+                        <div id="lobby-attempts" class="text-xl font-bold text-purple-300">0회</div>
+                    </div>
+                </div>
+
+                <div class="space-y-3">
+                    <button onclick="startQuiz('all')" class="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-[0.99] btn-active">
+                        전체 문제 시작하기 (45문항)
+                    </button>
+                    <button onclick="startQuiz('wrong')" id="review-wrong-btn" class="hidden w-full py-4 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-300 font-bold rounded-2xl transition-all active:scale-[0.99] btn-active">
+                        틀린 문제만 다시 풀기
+                    </button>
+                </div>
+            </div>
+
+            <!-- 2. 퀴즈 화면 -->
+            <div id="quiz-view" class="hidden fade-in space-y-6">
+                <!-- 상단 프로그레스 바 -->
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-400">
+                        <span id="progress-text">로딩 중...</span>
+                        <span id="accuracy-text">정답률: 100%</span>
+                    </div>
+                    <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                        <div id="progress-bar" class="bg-gradient-to-r from-indigo-500 to-purple-500 h-full w-0 transition-all duration-300"></div>
+                    </div>
+                </div>
+
+                <!-- 문제 카드 -->
+                <div class="bg-slate-800/50 p-6 rounded-3xl border border-slate-800/80 text-center min-h-[160px] flex flex-col justify-center relative">
+                    <div id="question-type-badge" class="absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md uppercase"></div>
+                    <!-- 단어 표시 -->
+                    <h3 id="question-word" class="text-3xl font-extrabold text-white tracking-wide mb-1 select-none"></h3>
+                    <p id="question-sub" class="text-sm text-slate-400">다음에 올 알바른 준동사 형태는?</p>
+                </div>
+
+                <!-- 선택지 버튼 영역 -->
+                <div id="options-container" class="space-y-3">
+                    <!-- JS가 2개의 버튼을 여기에 채웁니다. -->
+                </div>
+            </div>
+
+            <!-- 3. 오답/정답 피드백 화면 -->
+            <div id="feedback-view" class="hidden fade-in space-y-6">
+                <div id="feedback-banner" class="p-6 rounded-3xl border text-center">
+                    <span id="feedback-emoji" class="text-4xl block mb-2">🎉</span>
+                    <h3 id="feedback-title" class="text-xl font-bold"></h3>
+                </div>
+
+                <!-- 단어 상세 정보 카드 -->
+                <div class="bg-slate-800/40 border border-slate-800 p-5 rounded-2xl space-y-4">
+                    <div class="border-b border-slate-800 pb-3">
+                        <div class="flex items-center gap-2 mb-1">
+                            <span id="feedback-word" class="text-2xl font-bold text-white"></span>
+                            <span id="feedback-pron" class="text-sm text-indigo-400 font-medium"></span>
+                        </div>
+                        <p id="feedback-meaning" class="text-slate-300 font-medium"></p>
+                    </div>
+
+                    <div>
+                        <span class="text-[10px] uppercase font-bold tracking-wider text-slate-500 block mb-1">지텔프 핵심 규칙</span>
+                        <p id="feedback-rule" class="text-lg font-bold text-indigo-300"></p>
+                    </div>
+                </div>
+
+                <button id="next-question-btn" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-2xl border border-slate-700 transition-all active:scale-[0.99] btn-active">
+                    다음 문제로 넘어가기
+                </button>
+            </div>
+
+            <!-- 4. 결과 리포트 화면 -->
+            <div id="result-view" class="hidden fade-in text-center space-y-6 py-4">
+                <div class="space-y-2">
+                    <span class="text-5xl">🏆</span>
+                    <h2 class="text-2xl font-black text-white">퀴즈 완주 성공!</h2>
+                    <p class="text-slate-400 text-sm">포기하지 않고 끝까지 공부한 당신이 챔피언입니다.</p>
+                </div>
+
+                <!-- 최종 성적 표 -->
+                <div class="bg-slate-800/30 border border-slate-800 rounded-3xl p-5 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div class="text-center border-r border-slate-800">
+                            <span class="text-xs text-slate-400 block mb-1">최종 점수</span>
+                            <span id="result-score" class="text-2xl font-extrabold text-indigo-300">0 / 0</span>
+                        </div>
+                        <div class="text-center">
+                            <span class="text-xs text-slate-400 block mb-1">정답률</span>
+                            <span id="result-accuracy" class="text-2xl font-extrabold text-purple-300">0%</span>
+                        </div>
+                    </div>
+
+                    <!-- 오답 현황 요약 -->
+                    <div id="wrong-summary-box" class="hidden border-t border-slate-800 pt-3 text-left">
+                        <p class="text-xs font-bold text-red-400 mb-2">🚨 보완이 필요한 오답 단어 (<span id="wrong-count">0</span>개):</p>
+                        <div id="wrong-words-list" class="flex flex-wrap gap-1.5 max-h-[120px] overflow-y-auto pr-1">
+                            <!-- 틀린 단어 배지들이 생성됩니다. -->
+                        </div>
+                    </div>
+                </div>
+
+                <div class="space-y-2">
+                    <button onclick="restartApp()" class="w-full py-4 bg-gradient-to-r from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white font-bold rounded-2xl shadow-lg transition-all active:scale-[0.99] btn-active">
+                        다시 시작하기
+                    </button>
+                    <button onclick="goToLobby()" class="w-full py-4 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-2xl border border-slate-700 transition-all active:scale-[0.99] btn-active">
+                        메인 화면으로 가기
+                    </button>
+                </div>
+            </div>
+
+            <!-- 5. 핵심 단어 요약장 화면 (Study Mode) -->
+            <div id="study-view" class="hidden fade-in space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                <div class="text-center py-2">
+                    <h2 class="text-xl font-bold text-white mb-1">💡 준동사 45선 한눈에 암기</h2>
+                    <p class="text-xs text-slate-400">지텔프 시험에 기적을 부르는 리스트</p>
+                </div>
+
+                <div class="space-y-3">
+                    <!-- 동명사 그룹 -->
+                    <div class="bg-emerald-500/5 border border-emerald-500/10 rounded-2xl p-4">
+                        <h3 class="text-sm font-bold text-emerald-400 mb-2">🟢 동명사만 목적어로 갖는 동사 (-ing)</h3>
+                        <div class="flex flex-wrap gap-1.5" id="study-gerunds"></div>
+                    </div>
+
+                    <!-- to부정사 그룹 -->
+                    <div class="bg-blue-500/5 border border-blue-500/10 rounded-2xl p-4">
+                        <h3 class="text-sm font-bold text-blue-400 mb-2">🔵 to부정사만 목적어로 갖는 동사 (to V)</h3>
+                        <div class="flex flex-wrap gap-1.5" id="study-infinitives"></div>
+                    </div>
+
+                    <!-- 관용 표현 그룹 -->
+                    <div class="bg-amber-500/5 border border-amber-500/10 rounded-2xl p-4">
+                        <h3 class="text-sm font-bold text-amber-400 mb-2">🟠 관용 표현 (to가 전치사이므로 뒤에 -ing)</h3>
+                        <div class="flex flex-wrap gap-1.5" id="study-idioms"></div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- 푸터 브랜딩 -->
+        <footer class="p-4 text-center border-t border-slate-800 bg-slate-950/40">
+            <p class="text-[10px] text-slate-500 tracking-wide font-medium">지텔프 최단기 합격 메이커 © 2026</p>
+        </footer>
+    </div>
+
+    <script>
+        // 전체 45개 핵심 단어 데이터셋
+        const quizData = [
+            // 동명사만 취하는 동사 (Gerunds - 21개)
+            { word: "recommend", pron: "[레커멘드]", meaning: "추천하다", type: "gerund", example: "recommend + -ing" },
+            { word: "enjoy", pron: "[인조이]", meaning: "즐기다", type: "gerund", example: "enjoy + -ing" },
+            { word: "avoid", pron: "[어보이드]", meaning: "피하다", type: "gerund", example: "avoid + -ing" },
+            { word: "mind", pron: "[마인드]", meaning: "꺼리다", type: "gerund", example: "mind + -ing" },
+            { word: "consider", pron: "[컨시더]", meaning: "고려하다", type: "gerund", example: "consider + -ing" },
+            { word: "finish", pron: "[피니쉬]", meaning: "끝내다", type: "gerund", example: "finish + -ing" },
+            { word: "keep", pron: "[킵]", meaning: "유지하다", type: "gerund", example: "keep + -ing" },
+            { word: "stop", pron: "[스탑]", meaning: "멈추다", type: "gerund", example: "stop + -ing" },
+            { word: "suggest", pron: "[서제스트]", meaning: "제안하다", type: "gerund", example: "suggest + -ing" },
+            { word: "include", pron: "[인클루드]", meaning: "포함하다", type: "gerund", example: "include + -ing" },
+            { word: "risk", pron: "[리스크]", meaning: "위험을 무릅쓰다", type: "gerund", example: "risk + -ing" },
+            { word: "admit", pron: "[애드밋]", meaning: "인정하다", type: "gerund", example: "admit + -ing" },
+            { word: "deny", pron: "[디나이]", meaning: "부인하다", type: "gerund", example: "deny + -ing" },
+            { word: "delay", pron: "[딜레이]", meaning: "지연하다", type: "gerund", example: "delay + -ing" },
+            { word: "postpone", pron: "[포스트폰]", meaning: "연기하다", type: "gerund", example: "postpone + -ing" },
+            { word: "practice", pron: "[프랙티스]", meaning: "연습하다", type: "gerund", example: "practice + -ing" },
+            { word: "imagine", pron: "[이매진]", meaning: "상상하다", type: "gerund", example: "imagine + -ing" },
+            { word: "give up", pron: "[기브 업]", meaning: "포기하다", type: "gerund", example: "give up + -ing" },
+            { word: "escape", pron: "[이스케입]", meaning: "탈출하다/모면하다", type: "gerund", example: "escape + -ing" },
+            { word: "tolerate", pron: "[탈러레이트]", meaning: "참다/용인하다", type: "gerund", example: "tolerate + -ing" },
+            { word: "mention", pron: "[멘션]", meaning: "언급하다", type: "gerund", example: "mention + -ing" },
+            
+            // to부정사만 취하는 동사 (Infinitives - 17개)
+            { word: "want", pron: "[원트]", meaning: "원하다", type: "infinitive", example: "want + to V" },
+            { word: "hope", pron: "[호웁]", meaning: "희망하다", type: "infinitive", example: "hope + to V" },
+            { word: "plan", pron: "[플랜]", meaning: "계획하다", type: "infinitive", example: "plan + to V" },
+            { word: "decide", pron: "[디사이드]", meaning: "결정하다", type: "infinitive", example: "decide + to V" },
+            { word: "need", pron: "[니드]", meaning: "필요하다", type: "infinitive", example: "need + to V" },
+            { word: "intend", pron: "[인텐드]", meaning: "의도하다", type: "infinitive", example: "intend + to V" },
+            { word: "promise", pron: "[프라미스]", meaning: "약속하다", type: "infinitive", example: "promise + to V" },
+            { word: "refuse", pron: "[리퓨즈]", meaning: "거절하다", type: "infinitive", example: "refuse + to V" },
+            { word: "agree", pron: "[어그리]", meaning: "동의하다", type: "infinitive", example: "agree + to V" },
+            { word: "ask", pron: "[아스크]", meaning: "요청하다", type: "infinitive", example: "ask + to V" },
+            { word: "expect", pron: "[익스펙트]", meaning: "기대하다", type: "infinitive", example: "expect + to V" },
+            { word: "choose", pron: "[츄즈]", meaning: "선택하다", type: "infinitive", example: "choose + to V" },
+            { word: "fail", pron: "[페일]", meaning: "실패하다", type: "infinitive", example: "fail + to V" },
+            { word: "manage", pron: "[매니지]", meaning: "가까스로 ~해내다", type: "infinitive", example: "manage + to V" },
+            { word: "offer", pron: "[오퍼]", meaning: "제안하다", type: "infinitive", example: "offer + to V" },
+            { word: "learn", pron: "[런]", meaning: "배우다", type: "infinitive", example: "learn + to V" },
+            { word: "wish", pron: "[위쉬]", meaning: "바라다", type: "infinitive", example: "wish + to V" },
+            
+            // 관용 표현 (Idioms - 7개)
+            { word: "be used to", pron: "[비 유즈드 투]", meaning: "~에 익숙하다", type: "idiom", example: "be used to + -ing" },
+            { word: "look forward to", pron: "[룩 포워드 투]", meaning: "~를 고대하다", type: "idiom", example: "look forward to + -ing" },
+            { word: "be worth", pron: "[비 워쓰]", meaning: "~할 가치가 있다", type: "idiom", example: "be worth + -ing" },
+            { word: "have difficulty", pron: "[해브 디피컬티]", meaning: "~하는 데 어려움을 겪다", type: "idiom", example: "have difficulty + -ing" },
+            { word: "cannot help", pron: "[캔낫 헬프]", meaning: "~하지 않을 수 없다", type: "idiom", example: "cannot help + -ing" },
+            { word: "be busy", pron: "[비 비지]", meaning: "~하느라 바쁘다", type: "idiom", example: "be busy + -ing" },
+            { word: "spend time", pron: "[스펜드 타임]", meaning: "~하며 시간을 보내다", type: "idiom", example: "spend time + -ing" }
+        ];
+
+        // 상태 관리
+        let activeQuizSet = [];
+        let currentIdx = 0;
+        let score = 0;
+        let totalAnswered = 0;
+        let wrongAnswers = [];
+        let isStudyMode = false;
+
+        // 로컬 스토리지 키
+        const HIGH_SCORE_KEY = "gtelp_high_score";
+        const ATTEMPTS_KEY = "gtelp_attempts_count";
+        const WRONG_WORDS_KEY = "gtelp_wrong_words_v2";
+
+        // Web Audio API 효과음 엔진
+        const playSound = (isCorrect) => {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+
+                if (isCorrect) {
+                    // 정답음: 청량한 두 번의 스타카토 비프음
+                    osc.type = "sine";
+                    osc.frequency.setValueAtTime(523.25, ctx.currentTime); // C5
+                    osc.frequency.setValueAtTime(659.25, ctx.currentTime + 0.08); // E5
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.25);
+                } else {
+                    // 오답음: 둔탁하고 낮은 무거운 버즈음
+                    osc.type = "sawtooth";
+                    osc.frequency.setValueAtTime(140, ctx.currentTime);
+                    osc.frequency.linearRampToValueAtTime(90, ctx.currentTime + 0.2);
+                    gain.gain.setValueAtTime(0.08, ctx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+                    osc.start();
+                    osc.stop(ctx.currentTime + 0.25);
+                }
+            } catch (e) {
+                console.log("AudioContext blocked or unsupported on this browser.", e);
+            }
+        };
+
+        // 초기화 함수
+        window.onload = function() {
+            loadStats();
+            buildStudyGuide();
+        };
+
+        // 통계 및 저장 데이터 로드
+        function loadStats() {
+            const highScore = localStorage.getItem(HIGH_SCORE_KEY) || 0;
+            const attempts = localStorage.getItem(ATTEMPTS_KEY) || 0;
+            const savedWrong = JSON.parse(localStorage.getItem(WRONG_WORDS_KEY) || "[]");
+
+            document.getElementById('lobby-high-score').innerText = `${highScore} / ${quizData.length}`;
+            document.getElementById('lobby-attempts').innerText = `${attempts}회`;
+
+            const reviewBtn = document.getElementById('review-wrong-btn');
+            if (savedWrong.length > 0) {
+                reviewBtn.classList.remove('hidden');
+                reviewBtn.innerText = `오답 복습하기 (${savedWrong.length}문항)`;
+            } else {
+                reviewBtn.classList.add('hidden');
+            }
+        }
+
+        // 퀴즈 시작
+        function startQuiz(mode) {
+            currentIdx = 0;
+            score = 0;
+            totalAnswered = 0;
+
+            if (mode === 'all') {
+                // 전체 데이터 셔플
+                activeQuizSet = [...quizData].sort(() => Math.random() - 0.5);
+                wrongAnswers = [];
+            } else if (mode === 'wrong') {
+                // 오답 데이터 로드 및 셔플
+                const savedWrong = JSON.parse(localStorage.getItem(WRONG_WORDS_KEY) || "[]");
+                activeQuizSet = [...savedWrong].sort(() => Math.random() - 0.5);
+                // 이번 풀이에서 새롭게 추적할 오답 배열 초기화
+                wrongAnswers = [];
+            }
+
+            switchView('quiz');
+            loadQuestion();
+        }
+
+        // 질문 로드
+        function loadQuestion() {
+            if (currentIdx >= activeQuizSet.length) {
+                showFinalResults();
+                return;
+            }
+
+            const data = activeQuizSet[currentIdx];
+            
+            // UI 바인딩
+            document.getElementById('progress-text').innerText = `문제: ${activeQuizSet.length}문항 중 ${currentIdx + 1}번째`;
+            
+            // 실시간 정답률 계산
+            const accuracy = totalAnswered > 0 ? Math.round((score / totalAnswered) * 100) : 100;
+            document.getElementById('accuracy-text').innerText = `실시간 정답률: ${accuracy}%`;
+
+            // 프로그레스바 업데이트
+            const progressPercent = ((currentIdx) / activeQuizSet.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+
+            // 질문 단어 소문자로 텍스트 렌더링
+            document.getElementById('question-word').innerText = data.word.toLowerCase();
+
+            // 뱃지 디자인 및 텍스트 설정
+            const badge = document.getElementById('question-type-badge');
+            if (data.type === 'gerund') {
+                badge.innerText = '동사 (동명사 전용)';
+                badge.className = 'absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
+            } else if (data.type === 'infinitive') {
+                badge.innerText = '동사 (to부정사 전용)';
+                badge.className = 'absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20';
+            } else {
+                badge.innerText = '필수 관용 표현';
+                badge.className = 'absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20';
+            }
+
+            // 2지선다 옵션 동적 생성
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            // 무작위 보기 순서 생성 (to V, -ing)
+            const options = ["to V", "-ing"];
+            if (Math.random() > 0.5) options.reverse();
+
+            options.forEach(opt => {
+                const btn = document.createElement('button');
+                btn.className = 'w-full py-4 px-5 bg-slate-800 hover:bg-slate-750 border-2 border-slate-800 hover:border-indigo-500/30 rounded-2xl text-left text-base font-bold transition-all duration-150 flex justify-between items-center active:scale-[0.99] btn-active';
+                btn.innerHTML = `
+                    <span class="text-slate-200">${opt}</span>
+                    <span class="text-xs text-slate-500 font-normal">선택하기 →</span>
+                `;
+                btn.onclick = () => handleAnswerSubmit(opt, data);
+                optionsContainer.appendChild(btn);
+            });
+        }
+
+        // 정오답 처리 및 피드백 페이지 전환
+        function handleAnswerSubmit(selected, data) {
+            // 정답 정의: to부정사 전용만 'to V', 나머지는 '-ing'
+            const isCorrectAnswer = (data.type === "infinitive" && selected === "to V") || (data.type !== "infinitive" && selected === "-ing");
+            
+            totalAnswered++;
+            if (isCorrectAnswer) {
+                score++;
+                playSound(true);
+            } else {
+                playSound(false);
+                // 틀린 문제 저장
+                if (!wrongAnswers.some(item => item.word === data.word)) {
+                    wrongAnswers.push(data);
+                }
+            }
+
+            // 피드백 UI 업데이트
+            const banner = document.getElementById('feedback-banner');
+            const emoji = document.getElementById('feedback-emoji');
+            const title = document.getElementById('feedback-title');
+
+            if (isCorrectAnswer) {
+                banner.className = "p-6 rounded-3xl border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 text-center";
+                emoji.innerText = "🎉";
+                title.innerText = "맞았습니다!";
+            } else {
+                banner.className = "p-6 rounded-3xl border border-red-500/20 bg-red-500/5 text-red-400 text-center";
+                emoji.innerText = "😅";
+                title.innerText = "틀렸습니다!";
+            }
+
+            document.getElementById('feedback-word').innerText = data.word.toLowerCase();
+            document.getElementById('feedback-pron').innerText = data.pron;
+            document.getElementById('feedback-meaning').innerText = `뜻: ${data.meaning}`;
+            document.getElementById('feedback-rule').innerText = data.example;
+
+            switchView('feedback');
+
+            // 다음 문제 버튼 핸들러 설정
+            document.getElementById('next-question-btn').onclick = () => {
+                currentIdx++;
+                switchView('quiz');
+                loadQuestion();
+            };
+        }
+
+        // 결과 화면 표시
+        function showFinalResults() {
+            switchView('result');
+
+            // 점수 및 정답률 계산
+            document.getElementById('result-score').innerText = `${score} / ${activeQuizSet.length}`;
+            const finalAccuracy = Math.round((score / activeQuizSet.length) * 100);
+            document.getElementById('result-accuracy').innerText = `${finalAccuracy}%`;
+
+            // 로컬 스토리지에 데이터 영구 저장
+            const savedHighScore = parseInt(localStorage.getItem(HIGH_SCORE_KEY) || "0");
+            if (score > savedHighScore) {
+                localStorage.setItem(HIGH_SCORE_KEY, score);
+            }
+
+            const attempts = parseInt(localStorage.getItem(ATTEMPTS_KEY) || "0");
+            localStorage.setItem(ATTEMPTS_KEY, attempts + 1);
+
+            // 최종 오답 노트 갱신 보존 로직
+            let storedWrong = JSON.parse(localStorage.getItem(WRONG_WORDS_KEY) || "[]");
+            
+            // 이번 라운드에서 맞춘 기존 오답 단어가 있다면 목록에서 제거
+            activeQuizSet.forEach(item => {
+                const wasCorrectThisTime = !wrongAnswers.some(w => w.word === item.word);
+                if (wasCorrectThisTime) {
+                    storedWrong = storedWrong.filter(w => w.word !== item.word);
+                }
+            });
+
+            // 새롭게 틀린 단어들 통합 병합
+            wrongAnswers.forEach(item => {
+                if (!storedWrong.some(w => w.word === item.word)) {
+                    storedWrong.push(item);
+                }
+            });
+
+            localStorage.setItem(WRONG_WORDS_KEY, JSON.stringify(storedWrong));
+
+            // 오답 현황 요약 박스 바인딩
+            const summaryBox = document.getElementById('wrong-summary-box');
+            const listContainer = document.getElementById('wrong-words-list');
+            listContainer.innerHTML = '';
+
+            if (storedWrong.length > 0) {
+                summaryBox.classList.remove('hidden');
+                document.getElementById('wrong-count').innerText = storedWrong.length;
+
+                storedWrong.forEach(item => {
+                    const badge = document.createElement('span');
+                    badge.className = 'inline-block text-xs bg-red-500/10 text-red-300 px-3 py-1.5 rounded-xl border border-red-500/20 font-medium';
+                    badge.innerText = `${item.word.toLowerCase()} (${item.type === 'infinitive' ? 'to V' : '-ing'})`;
+                    listContainer.appendChild(badge);
+                });
+            } else {
+                summaryBox.classList.add('hidden');
+            }
+
+            loadStats();
+        }
+
+        // 핵심 요약 단어장 뷰 동적 구축
+        function buildStudyGuide() {
+            const gerundContainer = document.getElementById('study-gerunds');
+            const infinitiveContainer = document.getElementById('study-infinitives');
+            const idiomContainer = document.getElementById('study-idioms');
+
+            gerundContainer.innerHTML = '';
+            infinitiveContainer.innerHTML = '';
+            idiomContainer.innerHTML = '';
+
+            quizData.forEach(item => {
+                const badge = document.createElement('div');
+                badge.className = 'bg-slate-850 hover:bg-slate-800 border border-slate-800 p-2.5 rounded-xl text-center transition-all cursor-help';
+                badge.title = `${item.pron} - ${item.meaning}`;
+                badge.innerHTML = `
+                    <div class="text-sm font-bold text-white">${item.word.toLowerCase()}</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5">${item.meaning}</div>
+                `;
+
+                if (item.type === 'gerund') {
+                    gerundContainer.appendChild(badge);
+                } else if (item.type === 'infinitive') {
+                    infinitiveContainer.appendChild(badge);
+                } else {
+                    idiomContainer.appendChild(badge);
+                }
+            });
+        }
+
+        // SCREEN VIEW NAVIGATION
+        function switchView(viewName) {
+            const views = ['lobby', 'quiz', 'feedback', 'result', 'study'];
+            views.forEach(view => {
+                const element = document.getElementById(`${view}-view`);
+                if (view === viewName) {
+                    element.classList.remove('hidden');
+                } else {
+                    element.classList.add('hidden');
+                }
+            });
+
+            // 헤더 버튼 상태 관리
+            const toggleBtn = document.getElementById('view-toggle-btn');
+            if (viewName === 'study') {
+                toggleBtn.innerText = '퀴즈로 돌아가기';
+                toggleBtn.className = 'px-3 py-1.5 text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 rounded-full border border-emerald-500/25 transition-all active:scale-95';
+            } else {
+                toggleBtn.innerText = '단어장 보기';
+                toggleBtn.className = 'px-3 py-1.5 text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/20 transition-all active:scale-95';
+            }
+        }
+
+        function toggleViewMode() {
+            const studyView = document.getElementById('study-view');
+            if (studyView.classList.contains('hidden')) {
+                isStudyMode = true;
+                switchView('study');
+            } else {
+                isStudyMode = false;
+                goToLobby();
+            }
+        }
+
+        function goToLobby() {
+            switchView('lobby');
+            loadStats();
+        }
+
+        function restartApp() {
+            goToLobby();
+        }
+    </script>
+</body>
+</html>
