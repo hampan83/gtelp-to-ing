@@ -107,8 +107,7 @@
 
                 <!-- 문제 카드 -->
                 <div class="bg-slate-800/50 p-6 rounded-3xl border border-slate-800/80 text-center min-h-[160px] flex flex-col justify-center relative">
-                    <div id="question-type-badge" class="absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2 py-0.5 rounded-md uppercase"></div>
-                    <!-- 단어 표시 -->
+                    <!-- 단어 표시 (오답 힌트가 되는 상단 배지 제거) -->
                     <h3 id="question-word" class="text-3xl font-extrabold text-white tracking-wide mb-1 select-none"></h3>
                     <p id="question-sub" class="text-sm text-slate-400">다음에 올 알바른 준동사 형태는?</p>
                 </div>
@@ -285,6 +284,8 @@
         let totalAnswered = 0;
         let wrongAnswers = [];
         let isStudyMode = false;
+        let currentView = 'lobby';
+        let lastViewBeforeStudy = 'lobby';
 
         // 로컬 스토리지 키
         const HIGH_SCORE_KEY = "gtelp_high_score";
@@ -393,20 +394,7 @@
             // 질문 단어 소문자로 텍스트 렌더링
             document.getElementById('question-word').innerText = data.word.toLowerCase();
 
-            // 뱃지 디자인 및 텍스트 설정
-            const badge = document.getElementById('question-type-badge');
-            if (data.type === 'gerund') {
-                badge.innerText = '동사 (동명사 전용)';
-                badge.className = 'absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20';
-            } else if (data.type === 'infinitive') {
-                badge.innerText = '동사 (to부정사 전용)';
-                badge.className = 'absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md bg-blue-500/10 text-blue-400 border border-blue-500/20';
-            } else {
-                badge.innerText = '필수 관용 표현';
-                badge.className = 'absolute top-4 left-4 text-[10px] font-bold tracking-wider px-2.5 py-1 rounded-md bg-amber-500/10 text-amber-400 border border-amber-500/20';
-            }
-
-            // 2지선다 옵션 동적 생성
+            // 선택지 버튼 영역 초기화 및 2지선다 옵션 동적 생성
             const optionsContainer = document.getElementById('options-container');
             optionsContainer.innerHTML = '';
 
@@ -574,11 +562,15 @@
                 }
             });
 
+            if (viewName !== 'study') {
+                currentView = viewName;
+            }
+
             // 헤더 버튼 상태 관리
             const toggleBtn = document.getElementById('view-toggle-btn');
             if (viewName === 'study') {
-                toggleBtn.innerText = '퀴즈로 돌아가기';
-                toggleBtn.className = 'px-3 py-1.5 text-xs font-semibold bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 rounded-full border border-emerald-500/25 transition-all active:scale-95';
+                toggleBtn.innerText = '닫기';
+                toggleBtn.className = 'px-3 py-1.5 text-xs font-semibold bg-red-500/15 hover:bg-red-500/25 text-red-400 rounded-full border border-red-500/25 transition-all active:scale-95';
             } else {
                 toggleBtn.innerText = '단어장 보기';
                 toggleBtn.className = 'px-3 py-1.5 text-xs font-semibold bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 rounded-full border border-indigo-500/20 transition-all active:scale-95';
@@ -588,11 +580,10 @@
         function toggleViewMode() {
             const studyView = document.getElementById('study-view');
             if (studyView.classList.contains('hidden')) {
-                isStudyMode = true;
+                lastViewBeforeStudy = currentView;
                 switchView('study');
             } else {
-                isStudyMode = false;
-                goToLobby();
+                switchView(lastViewBeforeStudy);
             }
         }
 
